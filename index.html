@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="tr" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Altf4 Envanter Sistemi | Kişisel Kütüphane ve Teçhizat Yönetimi</title>
+  <meta name="description" content="Evdeki kütüphanenizi ve elektronik malzemelerinizi kolayca yönetin. Aradığınızı saniyeler içinde bulun." />
+  <meta name="theme-color" content="#0ea5e9" />
+  
+  <link rel="manifest" href="manifest.json" />
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+            },
+            pastelGreen: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- HTML5 QR Code & Barcode Scanner CDN -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <!-- Firebase Compat CDN (v13.0.0) -->
+  <script src="https://www.gstatic.com/firebasejs/13.0.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/13.0.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore-compat.js"></script>
+
+  <!-- Özel Stiller -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200 antialiased selection:bg-sky-500 selection:text-white">
+
+  <!-- ================= ÇEVRİMDIŞI BİLDİRİM ÇUBUĞU ================= -->
+  <div id="offlineIndicatorBanner" class="hidden bg-amber-500 text-slate-950 px-4 py-2 text-center text-xs font-bold tracking-wide shadow-md sticky top-0 z-50 flex items-center justify-center">
+    <span class="inline-block w-2.5 h-2.5 rounded-full bg-slate-900 animate-ping mr-2"></span>
+    Çevrimdışı Mod - Yerel önbellek gösteriliyor. İnternet bağlandığında değişiklikler buluta eşitlenecektir.
+  </div>
+
+  <!-- ================= ÜST MENÜ (NAVBAR) ================= -->
+  <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Logo ve Sistem Başlığı -->
+      <a href="#landing" class="flex items-center space-x-3 group">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-emerald-400 flex items-center justify-center text-white font-extrabold text-xl shadow-md group-hover:scale-105 transition-transform">
+          A4
+        </div>
+        <div>
+          <span class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-sky-600 to-emerald-600 dark:from-sky-400 dark:to-emerald-400 bg-clip-text text-transparent">
+            Altf4 Envanter
+          </span>
+          <span class="block text-[10px] text-slate-400 font-medium -mt-1 tracking-wider uppercase">Ev & Kütüphane</span>
+        </div>
+      </a>
+
+      <!-- Masaüstü Navigasyon Menüsü -->
+      <nav class="hidden md:flex items-center space-x-1 lg:space-x-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+        <a href="#landing" data-nav="landing" class="px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Ana Sayfa</a>
+        <a href="#dashboard" data-nav="dashboard" data-auth-only class="hidden px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Ana Panel</a>
+        <a href="#kutuphane" data-nav="kutuphane" data-auth-only class="hidden px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Kütüphane</a>
+        <a href="#elektronik" data-nav="elektronik" data-auth-only class="hidden px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Elektronik</a>
+        <a href="#talepler" data-nav="talepler" data-auth-only class="hidden px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors items-center space-x-1">
+          <span>Talepler</span>
+          <span id="navRequestBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white shadow-sm">0</span>
+        </a>
+        <a href="#yonetim" data-nav="yonetim" data-admin-only class="hidden px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-amber-600 dark:text-amber-400 flex items-center space-x-1">
+          <span>👑 Yönetim</span>
+        </a>
+      </nav>
+
+      <!-- Sağ Kontroller: Arama Düğmesi, Barkod, Tema, Test Rolü ve Auth -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        
+        <!-- Hızlı Barkod Tara Düğmesi (Masaüstü & Mobil) -->
+        <button id="btnScanGlobal" data-auth-only class="hidden flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900 text-sky-600 dark:text-sky-300 text-xs font-bold transition-all border border-sky-200/60 dark:border-sky-800/60 shadow-sm" title="Barkod veya QR Kod Tara">
+          <span>📷</span>
+          <span class="hidden sm:inline">Barkod Tara</span>
+        </button>
+
+
+
+        <!-- Tema Değiştirici (Açık/Koyu) -->
+        <button id="btnToggleTheme" class="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Temayı Değiştir">
+          <span class="dark:hidden">🌙</span>
+          <span class="hidden dark:inline">☀️</span>
+        </button>
+
+        <!-- Kullanıcı Durum Rozeti / Giriş Yap -->
+        <div id="authStatusContainer" class="flex items-center">
+          <!-- Dinamik Render Edilecek (App.updateAuthUI) -->
+        </div>
+        <div id="mobileAuthContainer" class="hidden"></div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= ANA İÇERİK ALANI ================= -->
+  <main class="flex-1 pb-20 md:pb-12">
+    
+    <!-- ================= 1. AÇILIŞ EKRANI (TANITIM / LANDING PAGE) ================= -->
+    <section id="section-landing" class="hidden">
+      <!-- Hero Bölümü -->
+      <div class="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+          
+          <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-sky-100 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 text-xs font-bold mb-6 border border-sky-200 dark:border-sky-800">
+            <span>✨</span>
+            <span>Kişisel Ev & Ekipman Envanteri</span>
+          </div>
+
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+            Altf4 Envanter Sistemi
+          </h1>
+
+          <p class="mt-4 text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+            Evdeki kütüphanenizi ve elektronik malzemelerinizi kolayca yönetin. Aradığınızı saniyeler içinde bulun.
+          </p>
+
+          <!-- YETKİSİZ ERİŞİM / MİSAFİR UYARI BİLGİLENDİRMESİ -->
+          <div id="unauthorizedAccessAlert" class="hidden mt-6 max-w-2xl mx-auto p-5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border-2 border-rose-400 dark:border-rose-800 text-left shadow-lg">
+            <div class="flex items-start space-x-3.5">
+              <div class="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-900/80 text-rose-600 dark:text-rose-300 flex items-center justify-center text-xl shrink-0 font-bold">
+                🚫
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-base font-extrabold text-rose-700 dark:text-rose-300">Yetkiniz yoktur</h3>
+                  <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-200 font-bold">Misafir Rolü</span>
+                </div>
+                <p class="text-xs text-rose-800 dark:text-rose-200 mt-2 leading-relaxed">
+                  Giriş yaptığınız Google hesabı (<span id="unauthorizedUserEmail" class="font-bold underline"></span>) sistemin beyaz listesinde yer almamaktadır. Altf4 Envanter Sistemi dışarıya kapalı bir aile uygulamasıdır. 'Misafir' rolünde olduğunuz için envanter bölümlerine (Ana Panel, Kütüphane, Elektronik, Yönetim) erişiminiz kısıtlanmıştır.
+                </p>
+                <div class="mt-4 flex flex-wrap items-center gap-2">
+                  <button onclick="AuthService.signOut()" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition-colors">
+                    Farklı Hesap ile Giriş Yap / Çıkış Yap
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Aksiyon Butonları -->
+          <div class="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <a href="#dashboard" id="btnLandingExplore" class="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-sky-600 to-emerald-600 hover:from-sky-700 hover:to-emerald-700 text-white font-bold text-sm shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transform hover:-translate-y-0.5 transition-all">
+              🚀 Envanteri Keşfet (Ana Panel)
+            </a>
+            <button id="btnLandingLogin" onclick="App.triggerLogin()" class="px-6 py-3.5 rounded-2xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm border border-slate-200 dark:border-slate-700 shadow-sm transition-all flex items-center space-x-2">
+              <span>Google ile Giriş Yap</span>
+            </button>
+          </div>
+
+          <!-- Canlı Önizleme / Ekran Maketi -->
+          <div class="mt-14 max-w-5xl mx-auto bg-white dark:bg-slate-800 rounded-3xl p-3 sm:p-5 shadow-2xl border border-slate-200 dark:border-slate-700">
+            <div class="bg-slate-100 dark:bg-slate-900 rounded-2xl p-6 text-left">
+              <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+                <div class="flex items-center space-x-2">
+                  <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                  <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                  <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                  <span class="ml-2 text-xs font-semibold text-slate-400">Canlı Sistem Özeti</span>
+                </div>
+                <span class="text-xs text-sky-500 font-bold">Gerçek Zamanlı Senkronize</span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div class="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div class="text-xs text-slate-400 font-semibold">📍 Hiyerarşik Konum</div>
+                  <div class="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">Oda › Dolap › Kutu</div>
+                  <p class="text-xs text-slate-500 mt-1">Her bir direnç veya kitabın tam rafına kadar net adresi.</p>
+                </div>
+                <div class="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div class="text-xs text-slate-400 font-semibold">🔍 Toleranslı Arama</div>
+                  <div class="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">Bulanık (Fuzzy) Arama</div>
+                  <p class="text-xs text-slate-500 mt-1">Yazım hatalarını önemsemeyen akıllı arama algoritması.</p>
+                </div>
+                <div class="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div class="text-xs text-slate-400 font-semibold">📱 Barkod & QR</div>
+                  <div class="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">Kamera ile Saniyede Bul</div>
+                  <p class="text-xs text-slate-500 mt-1">ISBN ve ekipman barkodlarını telefon kamerasından anında tara.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Özellik Izgarası -->
+          <div class="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 text-left max-w-5xl mx-auto">
+            <div class="space-y-2">
+              <div class="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 flex items-center justify-center font-bold text-lg">
+                🛡️
+              </div>
+              <h3 class="font-bold text-base text-slate-800 dark:text-slate-100">Aile İçi Yetkilendirme</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Yalnızca yönetici (altf4yapin@gmail.com) ve beyaz listedeki aile fertleri giriş yapabilir. Dışarıya kapalı güvenli ortam.
+              </p>
+            </div>
+
+            <div class="space-y-2">
+              <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 flex items-center justify-center font-bold text-lg">
+                📶
+              </div>
+              <h3 class="font-bold text-base text-slate-800 dark:text-slate-100">Kesintisiz Çevrimdışı Çalışma</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                İnternet kopsa dahi kütüphanenizdeki kitapları ve elektronik çekmecenizi önbellekten inceleyin.
+              </p>
+            </div>
+
+            <div class="space-y-2">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-300 flex items-center justify-center font-bold text-lg">
+                📝
+              </div>
+              <h3 class="font-bold text-base text-slate-800 dark:text-slate-100">Zorunlu Ödünç / Konum Notu</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Eşyayı alan veya durumunu değiştiren kişi 'Nerede kullanılıyor / Kimde?' notu girmeden durumu güncelleyemez.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 2. ANA PANEL (DASHBOARD) ================= -->
+    <section id="section-dashboard" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+      
+      <!-- YÖNETİCİ GERÇEK ZAMANLI TALEP BİLDİRİM BANNERI -->
+      <div id="adminNewRequestAlertBanner" class="hidden p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 dark:from-amber-950/40 dark:via-orange-950/40 dark:to-amber-950/40 border-2 border-amber-400 dark:border-amber-600 shadow-md transition-all">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center space-x-3">
+            <span class="text-2xl animate-bounce shrink-0">📬</span>
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">Yeni Malzeme / Kitap Talebi</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200 font-bold">Canlı</span>
+              </div>
+              <p id="adminNewRequestAlertText" class="text-xs font-bold text-slate-800 dark:text-slate-100 mt-0.5"></p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2 shrink-0">
+            <a href="#talepler" class="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm transition-colors flex items-center space-x-1">
+              <span>İncele</span>
+              <span>→</span>
+            </a>
+            <button id="btnCloseAdminRequestAlert" type="button" class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center font-bold text-xs" title="Kapat">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARAMA VE GELİŞMİŞ FİLTRE ÇUBUĞU -->
+      <div class="bg-white dark:bg-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/80 space-y-4">
+        
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          
+          <!-- Arama Inputu (Fuzzy Search) -->
+          <div class="relative flex-1">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 text-sm">
+              🔍
+            </span>
+            <input
+              type="text"
+              id="globalSearchInput"
+              placeholder="Eşya, kitap veya malzeme ara..."
+              class="w-full pl-10 pr-10 py-3 rounded-2xl bg-slate-100 dark:bg-slate-900/60 border border-transparent focus:border-sky-500 dark:focus:border-sky-400 text-slate-800 dark:text-slate-100 placeholder-slate-400 text-sm focus:outline-none transition-all"
+            />
+            <button id="btnClearSearch" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold" title="Aramayı Temizle">
+              ✕
+            </button>
+          </div>
+
+          <!-- Aksiyon Butonları (Barkod, Filtre, Yeni Ekle) -->
+          <div class="flex items-center space-x-2">
+            <button id="btnToggleFilter" class="px-3.5 py-3 rounded-2xl bg-slate-100 dark:bg-slate-700/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center space-x-1.5 transition-colors">
+              <span>⚙️</span>
+              <span class="hidden sm:inline">Filtreler</span>
+            </button>
+
+            <button id="btnAddNewItem" data-admin-only class="hidden px-4 py-3 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-md shadow-sky-500/20 flex items-center space-x-1.5 transition-all">
+              <span>+</span>
+              <span>Yeni Ekle</span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Açılır Gelişmiş Filtre Paneli -->
+        <div id="advancedFilterPanel" class="hidden pt-4 border-t border-slate-100 dark:border-slate-700/60 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+          <div>
+            <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Durum</label>
+            <select id="filterDurum" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2 focus:outline-none">
+              <option value="all">Tüm Durumlar</option>
+              <option value="mevcut">Mevcut (Yerinde)</option>
+              <option value="kullanimda">Kullanımda</option>
+              <option value="okunmakta">Okunmakta</option>
+              <option value="yanimda">Yanımda (Şehir Dışı)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Tür / Kategori</label>
+            <select id="filterKategori" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2 focus:outline-none">
+              <option value="all">Tüm Kategoriler</option>
+              <option value="Bilgisayar & Yazılım">Bilgisayar & Yazılım</option>
+              <option value="Roman & Edebiyat">Roman & Edebiyat</option>
+              <option value="Mühendislik & Fen">Mühendislik & Fen</option>
+              <option value="Geliştirme Kartları (Arduino/ESP/Pi)">Geliştirme Kartları</option>
+              <option value="Sensörler & Modüller">Sensörler & Modüller</option>
+              <option value="Pasif Komponentler (Direnç/Kondansatör)">Pasif Komponentler</option>
+              <option value="Ölçü Aletleri">Ölçü Aletleri</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Oda</label>
+            <select id="filterOda" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2 focus:outline-none">
+              <option value="all">Tüm Odalar</option>
+              <option value="Çalışma Odası">Çalışma Odası</option>
+              <option value="Salon">Salon</option>
+              <option value="Yatak Odası">Yatak Odası</option>
+              <option value="Atölye / Kiler">Atölye / Kiler</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Dolap / Raf</label>
+            <select id="filterDolap" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2 focus:outline-none">
+              <option value="all">Tüm Dolaplar</option>
+              <option value="Ana Kitaplık - Raf 1">Ana Kitaplık - Raf 1</option>
+              <option value="Ana Kitaplık - Raf 2">Ana Kitaplık - Raf 2</option>
+              <option value="Elektronik Dolabı">Elektronik Dolabı</option>
+              <option value="Metal Raf Ünitesi">Metal Raf Ünitesi</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Sıralama</label>
+            <select id="filterSortBy" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2 focus:outline-none">
+              <option value="isim-asc">İsim (A - Z)</option>
+              <option value="isim-desc">İsim (Z - A)</option>
+              <option value="adet-asc">Stok (Artan)</option>
+              <option value="adet-desc">Stok (Azalan)</option>
+              <option value="tarih-desc">Son Eklenenler</option>
+            </select>
+          </div>
+
+          <div class="flex items-center space-x-3 pt-4 sm:pt-5">
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" id="filterLowStock" class="rounded text-sky-600 focus:ring-0 w-4 h-4" />
+              <span class="font-medium text-slate-700 dark:text-slate-300">Sadece Kritik Stok</span>
+            </label>
+            <button id="btnResetFilters" class="text-sky-600 hover:underline font-bold ml-auto">Temizle</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ARAMA AKTİFSE ARAMA SONUÇLARI BURADA GÖRÜNÜR -->
+      <div id="dashboardSearchResults" class="hidden space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm">Arama Sonuçları</h3>
+          <span id="dashboardSearchCount" class="text-xs text-slate-400">0 sonuç</span>
+        </div>
+        <div id="dashboardSearchResultsContent"></div>
+      </div>
+
+      <!-- VARSAYILAN PANEL BİLEŞENLERİ (Arama yapılmıyorken) -->
+      <div id="dashboardDefaultWidgets" class="space-y-6">
+        
+        <!-- 4'LÜ HIZLI İSTATİSTİK KARTLARI -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          
+          <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center space-x-3.5">
+            <div class="w-12 h-12 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 flex items-center justify-center text-xl shrink-0">
+              📚
+            </div>
+            <div>
+              <div class="text-xs text-slate-400 font-semibold">Toplam Kitap</div>
+              <div id="statBookCount" class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">0</div>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center space-x-3.5">
+            <div class="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 flex items-center justify-center text-xl shrink-0">
+              ⚡
+            </div>
+            <div>
+              <div class="text-xs text-slate-400 font-semibold">Elektronik Parça</div>
+              <div id="statElecCount" class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">0</div>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center space-x-3.5">
+            <div class="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-300 flex items-center justify-center text-xl shrink-0">
+              🔄
+            </div>
+            <div>
+              <div class="text-xs text-slate-400 font-semibold">Kullanımda / Dışarıda</div>
+              <div id="statInUseCount" class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">0</div>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center space-x-3.5">
+            <div class="w-12 h-12 rounded-xl bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300 flex items-center justify-center text-xl shrink-0">
+              ⚠️
+            </div>
+            <div>
+              <div class="text-xs text-slate-400 font-semibold">Kritik Stok Uyarısı</div>
+              <div id="statLowStockCount" class="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400">0</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- İKİ KOLONLU DÜZEN: "Stokta Azalanlar" & "Kullanımda Olanlar" -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          <!-- Stokta Azalanlar -->
+          <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700">
+              <div class="flex items-center space-x-2">
+                <span class="text-rose-500 font-bold">⚠️</span>
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Stokta Azalanlar</h3>
+              </div>
+              <span class="text-[11px] text-slate-400 font-medium">Kritik seviyedeki malzemeler</span>
+            </div>
+            <div id="dashboardLowStockList" class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+              <!-- Dinamik render -->
+            </div>
+          </div>
+
+          <!-- Şu An Kullanımda Olanlar / Ödünç Alınanlar -->
+          <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700">
+              <div class="flex items-center space-x-2">
+                <span class="text-sky-500 font-bold">📌</span>
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Şu An Kullanımda Olanlar / Ödünç Alınanlar</h3>
+              </div>
+              <span class="text-[11px] text-slate-400 font-medium">Nerede / Kimde olduğu kayıtlı</span>
+            </div>
+            <div id="dashboardInUseList" class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+              <!-- Dinamik render -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- HİYERARŞİK KONUM HARİTASI (Notion / Obsidian Tarzı Ağaç Görünümü) -->
+        <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-4">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700">
+            <div>
+              <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm flex items-center space-x-2">
+                <span>🗂️</span>
+                <span>Hiyerarşik Konum Haritası</span>
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">Oda › Dolap / Raf › Çekmece / Kutu navigasyonu. İlgili konuma tıklayarak eşyaları listeleyin.</p>
+            </div>
+          </div>
+          <div id="locationHierarchyTree" class="max-h-[400px] overflow-y-auto pr-1">
+            <!-- Dinamik Ağaç Yapısı -->
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ================= 3. KÜTÜPHANE BÖLÜMÜ ================= -->
+    <section id="section-kutuphane" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+        <div>
+          <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white">Kütüphane & Dokümanlar</h2>
+          <p id="libraryTotalCount" class="text-xs text-slate-400 mt-1 font-medium">Yükleniyor...</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <!-- Görünüm Değiştirici (Grid / Table) -->
+          <div class="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center text-xs">
+            <button onclick="App.viewMode.kutuphane = 'grid'; App.renderLibraryView();" class="px-3 py-1 rounded-lg font-bold bg-white dark:bg-slate-700 shadow-sm">Grid</button>
+            <button onclick="App.viewMode.kutuphane = 'table'; App.renderLibraryView();" class="px-3 py-1 rounded-lg font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Tablo</button>
+          </div>
+          <!-- Yeni Kitap Ekle -->
+          <button onclick="App.openItemModal(null, 'kutuphane')" data-admin-only class="hidden px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-md shadow-sky-500/20">
+            + Yeni Kitap Ekle
+          </button>
+        </div>
+      </div>
+
+      <div id="libraryItemsContainer">
+        <!-- Kitap kartları veya tablosu -->
+      </div>
+    </section>
+
+    <!-- ================= 4. ELEKTRONİK TEÇHİZAT BÖLÜMÜ ================= -->
+    <section id="section-elektronik" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+        <div>
+          <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white">Elektronik Teçhizat & Komponentler</h2>
+          <p id="electronicsTotalCount" class="text-xs text-slate-400 mt-1 font-medium">Yükleniyor...</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <!-- Görünüm Değiştirici -->
+          <div class="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center text-xs">
+            <button onclick="App.viewMode.elektronik = 'grid'; App.renderElectronicsView();" class="px-3 py-1 rounded-lg font-bold bg-white dark:bg-slate-700 shadow-sm">Grid</button>
+            <button onclick="App.viewMode.elektronik = 'table'; App.renderElectronicsView();" class="px-3 py-1 rounded-lg font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Tablo</button>
+          </div>
+          <!-- Yeni Malzeme Ekle -->
+          <button onclick="App.openItemModal(null, 'elektronik')" data-admin-only class="hidden px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20">
+            + Yeni Malzeme Ekle
+          </button>
+        </div>
+      </div>
+
+      <div id="electronicsItemsContainer">
+        <!-- Elektronik malzeme kartları veya tablosu -->
+      </div>
+    </section>
+
+    <!-- ================= 5. TALEP YÖNETİMİ BÖLÜMÜ (REQUESTS) ================= -->
+    <section id="section-talepler" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+      
+      <!-- Başlık ve Aksiyon -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+        <div>
+          <div class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-bold mb-2">
+            <span>📬</span>
+            <span>İstek & Talep Kutusu</span>
+          </div>
+          <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white">Talep Yönetimi</h2>
+          <p class="text-xs text-slate-400 mt-1">Aile üyeleri yeni kitap veya elektronik malzeme talep edebilir; Yönetici onaylayabilir veya reddedebilir.</p>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button onclick="App.openNewRequestModal()" class="px-4 py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-md shadow-sky-500/20 flex items-center space-x-1.5 transition-all">
+            <span>+</span>
+            <span>Yeni Talep Gönder</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Durum Filtre Sekmeleri -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 text-xs">
+        <div class="flex items-center space-x-1">
+          <button onclick="App.filterRequestsByStatus('all')" id="reqFilterAll" class="px-3 py-1.5 rounded-xl font-bold bg-sky-500 text-white transition-colors">Tümü</button>
+          <button onclick="App.filterRequestsByStatus('bekliyor')" id="reqFilterPending" class="px-3 py-1.5 rounded-xl font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">⏳ Bekleyenler</button>
+          <button onclick="App.filterRequestsByStatus('onaylandi')" id="reqFilterApproved" class="px-3 py-1.5 rounded-xl font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">✅ Onaylananlar</button>
+          <button onclick="App.filterRequestsByStatus('reddedildi')" id="reqFilterRejected" class="px-3 py-1.5 rounded-xl font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">❌ Reddedilenler</button>
+        </div>
+        <span id="requestsCountBadge" class="text-xs text-slate-400 font-medium">0 talep</span>
+      </div>
+
+      <!-- Talepler Listesi Kapsayıcısı -->
+      <div id="requestsListContainer" class="space-y-3">
+        <!-- Dinamik Render -->
+      </div>
+
+    </section>
+
+    <!-- ================= 6. YÖNETİM VE AYARLAR BÖLÜMÜ (Admin Only) ================= -->
+    <section id="section-yonetim" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-8">
+      
+      <div>
+        <div class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-xs font-bold mb-2">
+          <span>👑</span>
+          <span>Yönetici Özel Paneli</span>
+        </div>
+        <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white">Yönetim ve Ayarlar</h2>
+        <p class="text-xs text-slate-400 mt-1">Bu panel yalnızca sistem yöneticisi (altf4yapin@gmail.com) tarafından görüntülenebilir ve yönetilebilir.</p>
+      </div>
+
+      <!-- Firebase Durumu ve Yapılandırma -->
+      <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+          <div>
+            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Firebase Bulut Bağlantısı</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Gerçek zamanlı senkronizasyon ve Google Kimlik Doğrulaması için Firebase ayarları</p>
+          </div>
+          <div id="firebaseConnectionStatus"></div>
+        </div>
+
+        <form id="firebaseConfigForm" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+          <div>
+            <label class="block font-semibold mb-1">apiKey</label>
+            <input type="text" id="fbApiKey" placeholder="AIzaSy..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700" />
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">authDomain</label>
+            <input type="text" id="fbAuthDomain" placeholder="proje.firebaseapp.com" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700" />
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">projectId</label>
+            <input type="text" id="fbProjectId" placeholder="altf4-envanter" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700" />
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">storageBucket</label>
+            <input type="text" id="fbStorageBucket" placeholder="proje.appspot.com" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700" />
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">messagingSenderId</label>
+            <input type="text" id="fbMessagingSenderId" placeholder="123456789" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700" />
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">appId</label>
+            <input type="text" id="fbAppId" placeholder="1:1234:web:abcd" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700" />
+          </div>
+          <div class="sm:col-span-2 lg:col-span-3 flex justify-end">
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold transition-colors">
+              Yapılandırmayı Kaydet ve Bağlan
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Beyaz Liste (Whitelist) Yönetimi -->
+      <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+        <div class="pb-3 border-b border-slate-100 dark:border-slate-700">
+          <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Yetkili Aile Üyeleri (Whitelist)</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Sadece bu listedeki e-postalar sisteme erişebilir ve durum güncelleyebilir.</p>
+        </div>
+
+        <form id="whitelistForm" class="flex gap-2 max-w-md">
+          <input
+            type="email"
+            id="whitelistEmailInput"
+            placeholder="aile.uyesi@gmail.com"
+            required
+            class="flex-1 px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none"
+          />
+          <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl">
+            Listeye Ekle
+          </button>
+        </form>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-900/50 text-xs font-semibold text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                <th class="py-2.5 px-4">E-posta Adresi</th>
+                <th class="py-2.5 px-4 text-right">İşlem</th>
+              </tr>
+            </thead>
+            <tbody id="adminWhitelistTable" class="divide-y divide-slate-100 dark:divide-slate-800">
+              <!-- Dinamik render -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Toplu Veri İçe / Dışa Aktarma (JSON & CSV) -->
+      <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+        <div class="pb-3 border-b border-slate-100 dark:border-slate-700">
+          <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Toplu Veri Yedekleme ve Aktarma</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Envanter verilerini JSON veya Excel uyumlu CSV (UTF-8 BOM) formatında dışa veya içe aktarın.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Dışa Aktar -->
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 space-y-3">
+            <h4 class="font-bold text-xs text-slate-700 dark:text-slate-200">Dışa Aktarma (Yedek Al)</h4>
+            <div class="flex gap-2">
+              <button id="btnExportJSON" class="flex-1 py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs transition-colors">
+                📦 JSON İndir
+              </button>
+              <button id="btnExportCSV" class="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors">
+                📊 CSV İndir (Excel)
+              </button>
+            </div>
+          </div>
+
+          <!-- İçe Aktar -->
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 space-y-3">
+            <h4 class="font-bold text-xs text-slate-700 dark:text-slate-200">İçe Aktarma (Dosya Yükle)</h4>
+            <div class="flex gap-2">
+              <label class="flex-1 py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold text-xs text-center cursor-pointer">
+                JSON Yükle
+                <input type="file" id="fileImportJSON" accept=".json" class="hidden" />
+              </label>
+              <label class="flex-1 py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold text-xs text-center cursor-pointer">
+                CSV Yükle
+                <input type="file" id="fileImportCSV" accept=".csv" class="hidden" />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4 flex justify-end">
+          <button onclick="if(confirm('Tüm verileri başlangıç örnek verilerine sıfırlamak istediğinize emin misiniz?')) DatabaseService.resetToSampleData();" class="text-rose-500 hover:text-rose-700 text-xs font-semibold">
+            ⚠️ Verileri Başlangıç Örneklerine Sıfırla
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ================= MOBİL ALT MENÜ (BOTTOM NAVIGATION) ================= -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 mobile-nav-bar transition-colors">
+    <div id="mobileNavContainer" class="flex items-center justify-around h-14 text-[10px] font-semibold text-center text-slate-500 dark:text-slate-400 px-2">
+      
+      <a href="#landing" data-nav="landing" class="flex-1 flex flex-col items-center justify-center h-full hover:text-sky-500">
+        <span class="text-lg">🏠</span>
+        <span>Ana Sayfa</span>
+      </a>
+
+      <a href="#dashboard" data-nav="dashboard" data-auth-only class="hidden flex-1 flex flex-col items-center justify-center h-full hover:text-sky-500">
+        <span class="text-lg">📊</span>
+        <span>Panel</span>
+      </a>
+
+      <!-- Ortada Hızlı Kamera / Barkod FAB Butonu -->
+      <button id="btnScanMobile" data-auth-only class="hidden flex-1 flex flex-col items-center justify-center h-full -mt-5">
+        <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-sky-500 to-emerald-400 text-white flex items-center justify-center text-xl shadow-lg shadow-sky-500/30">
+          📷
+        </div>
+        <span class="text-[9px] font-bold text-sky-600 dark:text-sky-400 mt-1">Tara</span>
+      </button>
+
+      <a href="#kutuphane" data-nav="kutuphane" data-auth-only class="hidden flex-1 flex flex-col items-center justify-center h-full hover:text-sky-500">
+        <span class="text-lg">📖</span>
+        <span>Kitap</span>
+      </a>
+
+      <a href="#elektronik" data-nav="elektronik" data-auth-only class="hidden flex-1 flex flex-col items-center justify-center h-full hover:text-sky-500">
+        <span class="text-lg">⚡</span>
+        <span>Elektronik</span>
+      </a>
+
+      <a href="#talepler" data-nav="talepler" data-auth-only class="hidden flex-1 flex flex-col items-center justify-center h-full hover:text-sky-500 relative">
+        <span class="text-lg relative">
+          📬
+          <span id="mobileNavRequestBadge" class="hidden absolute -top-1 -right-2 px-1 py-0.2 rounded-full text-[9px] font-bold bg-amber-500 text-white min-w-[14px] text-center shadow-sm">0</span>
+        </span>
+        <span>Talepler</span>
+      </a>
+
+      <a href="#yonetim" data-nav="yonetim" data-admin-only class="hidden flex-1 flex flex-col items-center justify-center h-full hover:text-sky-500">
+        <span class="text-lg">👑</span>
+        <span>Yönetim</span>
+      </a>
+
+    </div>
+  </nav>
+
+  <!-- ================= BARKOD VE QR KOD KAMERA TARAYICI MODALI (Z-INDEX FIX: z-[90]) ================= -->
+  <div id="scannerModal" class="fixed inset-0 z-[90] bg-black/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl p-4 space-y-4">
+      
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800 shrink-0">
+        <div class="flex items-center space-x-2">
+          <span class="text-sky-400 font-bold">📷</span>
+          <h3 class="font-bold text-white text-sm">Kamera ile Barkod / QR Oku</h3>
+        </div>
+        <button id="btnCloseScanner" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center font-bold text-sm">
+          ✕
+        </button>
+      </div>
+
+      <!-- Kamera Görüntü Çerçevesi -->
+      <div class="relative rounded-2xl overflow-hidden bg-black aspect-square flex items-center justify-center">
+        <div id="scannerPreview" class="w-full h-full"></div>
+        <div class="scanner-laser"></div>
+      </div>
+
+      <p id="scannerFeedback" class="text-center text-xs text-slate-400 font-medium shrink-0">
+        Barkod veya QR kodu kameraya gösterin...
+      </p>
+
+    </div>
+  </div>
+
+  <!-- ================= YENİ / DÜZENLEME EŞYA MODALI (OVERFLOW FIX: modal-container) ================= -->
+  <div id="itemModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-3 sm:p-4">
+    <div class="relative w-full max-w-2xl bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 modal-container">
+      
+      <!-- Sabit Başlık -->
+      <div class="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700 shrink-0">
+        <h3 id="itemModalTitle" class="font-bold text-base text-slate-900 dark:text-white">Yeni Eşya Ekle</h3>
+        <button type="button" data-close-modal="itemModal" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center font-bold text-sm">
+          ✕
+        </button>
+      </div>
+
+      <!-- İçten Kaydırılabilir Form Gövdesi (Hiçbir ekranda taşma yapmaz) -->
+      <form id="itemForm" class="flex flex-col flex-1 overflow-hidden">
+        
+        <div class="modal-body-scrollable p-4 sm:p-6 space-y-4 text-xs">
+          <!-- Tür Seçimi (Kütüphane vs Elektronik) -->
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1">Envanter Türü</label>
+            <select id="itemType" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold focus:outline-none" onchange="App.updateFormFieldsForType(this.value)">
+              <option value="kutuphane">📖 Kütüphane & Kitap</option>
+              <option value="elektronik">⚡ Elektronik Teçhizat & Komponent</option>
+            </select>
+          </div>
+
+          <!-- İsim -->
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1">İsim / Başlık *</label>
+            <input type="text" id="itemIsim" required placeholder="Örn: Arduino Uno R3 veya Temiz Kod" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none" />
+          </div>
+
+          <!-- Kütüphaneye Özel Alanlar -->
+          <div id="formLibraryFields" class="space-y-4">
+            <div>
+              <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1">Yazar</label>
+              <input type="text" id="itemYazar" placeholder="Örn: Robert C. Martin" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none" />
+            </div>
+          </div>
+
+          <!-- Elektroniğe Özel Alanlar -->
+          <div id="formElectronicFields" class="hidden space-y-4">
+            <div>
+              <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1">Model / Parça Kodu</label>
+              <input type="text" id="itemModel" placeholder="Örn: ESP-WROOM-32 (30 Pin)" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none" />
+            </div>
+          </div>
+
+          <!-- Kategori & Barkod -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1">Kategori</label>
+              <select id="itemKategori" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none">
+                <!-- Dinamik yüklenecek -->
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1">Barkod / QR No</label>
+              <div class="flex gap-2">
+                <input type="text" id="itemBarkod" placeholder="ISBN veya Kod" class="flex-1 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none" />
+                <button type="button" onclick="BarcodeScannerService.startScan({ mode: 'input', targetInputId: 'itemBarkod' })" class="px-3 bg-sky-50 dark:bg-sky-950 border border-sky-200 text-sky-600 rounded-xl" title="Kamera ile Oku">
+                  📷
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stok Adedi ve Minimum Stok Seviyesi -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1">Mevcut Adet</label>
+              <input type="number" id="itemAdet" min="0" value="1" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1">Minimum Stok (Uyarı Eşiği)</label>
+              <input type="number" id="itemMinStok" min="1" value="1" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none" />
+            </div>
+          </div>
+
+          <!-- HİYERARŞİK KONUM SEÇİMİ (Oda > Dolap > Kutu) -->
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
+            <span class="font-bold text-slate-800 dark:text-slate-200 text-[11px] block">📍 Hiyerarşik Konum Haritalaması</span>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-[11px] text-slate-500 mb-1">Oda</label>
+                <select id="itemOda" class="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none">
+                  <!-- Dinamik -->
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-500 mb-1">Dolap / Raf</label>
+                <input type="text" id="itemDolap" list="dolapList" placeholder="Dolap veya Raf" class="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none" />
+                <datalist id="dolapList"></datalist>
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-500 mb-1">Çekmece / Kutu</label>
+                <input type="text" id="itemKutu" placeholder="Kutu No veya Çekmece" class="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Durum ve Özellikler -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1">Başlangıç Durumu</label>
+              <select id="itemDurum" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none">
+                <option value="mevcut">Mevcut (Yerinde)</option>
+                <option value="kullanimda">Kullanımda</option>
+                <option value="okunmakta">Okunmakta</option>
+                <option value="yanimda">Yanımda (Şehir Dışı)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1">Fotoğraf</label>
+              <div class="flex gap-2">
+                <input type="text" id="itemPhotoUrl" placeholder="Fotoğraf URL'si veya Yükleyin" class="flex-1 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none" />
+                <label class="px-3 py-2 bg-slate-200 dark:bg-slate-700 rounded-xl cursor-pointer flex items-center justify-center font-bold" title="Cihazdan Yükle">
+                  📁
+                  <input type="file" id="itemPhotoFile" accept="image/*" class="hidden" />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1">Özellikler / Ek Açıklama</label>
+            <textarea id="itemOzellikler" rows="2" placeholder="Teknik detaylar, pin sayısı, yayınevi..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none"></textarea>
+          </div>
+        </div>
+
+        <!-- Sabit Alt Butonlar -->
+        <div class="p-4 bg-slate-50 dark:bg-slate-800/90 border-t border-slate-100 dark:border-slate-700 flex justify-end space-x-2 shrink-0">
+          <button type="button" data-close-modal="itemModal" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200">
+            Vazgeç
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold transition-colors">
+            Kaydet
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= DURUM GÜNCELLEME MODALI (OVERFLOW FIX: modal-container) ================= -->
+  <div id="statusUpdateModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-3 sm:p-4">
+    <div class="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 modal-container">
+      
+      <!-- Sabit Başlık -->
+      <div class="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700 shrink-0">
+        <div>
+          <h3 class="font-bold text-base text-slate-900 dark:text-white">Durum Güncelle</h3>
+          <p id="statusItemTitle" class="text-xs text-slate-400 mt-0.5 truncate font-medium"></p>
+        </div>
+        <button type="button" data-close-modal="statusUpdateModal" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-white flex items-center justify-center font-bold text-sm">
+          ✕
+        </button>
+      </div>
+
+      <!-- İçten Kaydırılabilir Gövde -->
+      <form id="statusUpdateForm" class="flex flex-col flex-1 overflow-hidden">
+        <input type="hidden" id="statusItemId" />
+
+        <div class="modal-body-scrollable p-4 sm:p-6 space-y-4 text-xs">
+          <!-- Durum Seçenekleri -->
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1.5">Yeni Durum Seçiniz</label>
+            <select id="statusSelect" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold focus:outline-none">
+              <option value="mevcut">✅ Mevcut (Yerinde / Kendi Rafında)</option>
+              <option value="kullanimda">⚡ Kullanımda (Ev İçinde)</option>
+              <option value="okunmakta">📖 Okunmakta</option>
+              <option value="yanimda">💼 Yanımda (Şehir Dışı / Ofis / Çanta)</option>
+            </select>
+          </div>
+
+          <!-- ZORUNLU AÇIKLAMA NOTU -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="font-bold text-slate-800 dark:text-slate-100 flex items-center space-x-1">
+                <span>Nerede kullanılıyor / Kimde?</span>
+                <span class="text-rose-500 font-bold">*</span>
+              </label>
+              <span class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Zorunlu Alan</span>
+            </div>
+            <textarea
+              id="statusNoteInput"
+              required
+              rows="3"
+              placeholder="Örn: Salonda sehpa üzerinde okunuyor, ya da Ahmet'in çalışma masasında prototipte takılı..."
+              class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:outline-none"
+            ></textarea>
+            <p class="text-[11px] text-slate-400 mt-1">Aile üyelerinin eşyayı hızlıca bulabilmesi için lütfen açık konum belirtiniz.</p>
+          </div>
+        </div>
+
+        <!-- Sabit Alt Butonlar -->
+        <div class="p-4 bg-slate-50 dark:bg-slate-800/90 border-t border-slate-100 dark:border-slate-700 flex justify-end space-x-2 shrink-0">
+          <button type="button" data-close-modal="statusUpdateModal" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200">
+            İptal
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold transition-colors">
+            Durumu Güncelle
+          </button>
+        </div>
+
+      </form>
+    </div>
+  <!-- ================= EŞYA DETAY MODALI (OVERFLOW FIX: modal-container) ================= -->
+  <div id="itemDetailModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-3 sm:p-4">
+    <div class="relative w-full max-w-lg bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 modal-container">
+      
+      <!-- Üst Resim ve Başlık (Sabit) -->
+      <div class="relative h-44 w-full bg-slate-900 overflow-hidden shrink-0">
+        <img id="detailModalImage" src="" alt="Eşya Fotoğrafı" class="w-full h-full object-cover opacity-90" />
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+        <button type="button" data-close-modal="itemDetailModal" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center font-bold text-sm">
+          ✕
+        </button>
+        <div class="absolute bottom-3 left-4 right-4 text-white">
+          <span id="detailModalType" class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-600 uppercase tracking-wider"></span>
+          <h3 id="detailModalTitle" class="text-lg font-bold truncate mt-1"></h3>
+        </div>
+      </div>
+
+      <!-- İçten Kaydırılabilir Detay Alanı -->
+      <div class="modal-body-scrollable p-4 sm:p-6 space-y-4 text-xs">
+        
+        <div class="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+          <div>
+            <span class="text-slate-400 block font-medium">Durum</span>
+            <span id="detailModalStatus" class="font-bold text-slate-800 dark:text-slate-100 text-sm"></span>
+          </div>
+          <div>
+            <span class="text-slate-400 block font-medium">Stok Seviyesi</span>
+            <span id="detailModalStock" class="font-bold text-slate-800 dark:text-slate-100 text-sm"></span>
+          </div>
+          <div>
+            <span id="detailModalExtraTitle" class="text-slate-400 block font-medium">Yazar / Model</span>
+            <span id="detailModalExtraValue" class="font-bold text-slate-800 dark:text-slate-100"></span>
+          </div>
+          <div>
+            <span class="text-slate-400 block font-medium">Kategori</span>
+            <span id="detailModalCategory" class="font-bold text-slate-800 dark:text-slate-100"></span>
+          </div>
+          <div class="col-span-2">
+            <span class="text-slate-400 block font-medium">Barkod / ISBN</span>
+            <span id="detailModalBarcode" class="font-bold text-slate-800 dark:text-slate-100"></span>
+          </div>
+        </div>
+
+        <div>
+          <span class="text-slate-400 block font-medium mb-1">📍 Tam Hiyerarşik Konum</span>
+          <div id="detailModalLocation" class="p-3 bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 font-bold rounded-xl border border-sky-200 dark:border-sky-900/40"></div>
+        </div>
+
+        <div>
+          <span class="text-slate-400 block font-medium mb-1">📝 Güncel Durum Notu (Nerede / Kimde)</span>
+          <div id="detailModalNote" class="p-3 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 font-medium rounded-xl border border-amber-200 dark:border-amber-900/40"></div>
+        </div>
+
+        <div>
+          <span class="text-slate-400 block font-medium mb-1">ℹ️ Özellikler & Detaylar</span>
+          <div id="detailModalSpecs" class="text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800"></div>
+        </div>
+
+      </div>
+
+      <!-- Sabit Alt Buton -->
+      <div class="p-4 bg-slate-50 dark:bg-slate-800/90 border-t border-slate-100 dark:border-slate-700 flex justify-end shrink-0">
+        <button type="button" data-close-modal="itemDetailModal" class="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 font-bold text-slate-700 dark:text-slate-200">
+          Kapat
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= YENİ TALEP OLUŞTURMA MODALI ================= -->
+  <div id="newRequestModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-3 sm:p-4">
+    <div class="relative w-full max-w-lg bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 modal-container">
+      
+      <!-- Sabit Başlık -->
+      <div class="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700 shrink-0">
+        <div class="flex items-center space-x-2">
+          <span class="text-sky-500 font-bold text-lg">📬</span>
+          <h3 class="font-bold text-base text-slate-900 dark:text-white">Yeni Kitap / Malzeme Talebi</h3>
+        </div>
+        <button type="button" data-close-modal="newRequestModal" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-white flex items-center justify-center font-bold text-sm">
+          ✕
+        </button>
+      </div>
+
+      <!-- İçten Kaydırılabilir Gövde -->
+      <form id="newRequestForm" class="flex flex-col flex-1 overflow-hidden">
+        <div class="modal-body-scrollable p-4 sm:p-6 space-y-4 text-xs">
+          
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1.5">Talep Edilen Öğe Türü</label>
+            <select id="requestItemType" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold focus:outline-none">
+              <option value="kutuphane">📖 Kütüphane Kitabı / Doküman</option>
+              <option value="elektronik">⚡ Elektronik Teçhizat / Komponent</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1.5">Öğe Adı / Kitap Başlığı *</label>
+            <input type="text" id="requestTitle" required placeholder="Örn: Raspberry Pi Pico W veya Atomik Alışkanlıklar" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none" />
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1.5">Yazar / Model Kodu (Opsiyonel)</label>
+            <input type="text" id="requestAuthorOrModel" placeholder="Örn: James Clear veya RP2040 Wi-Fi" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none" />
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1.5">Açıklama / Neden Lazım? *</label>
+            <textarea id="requestDescription" required rows="3" placeholder="Proje detayı, satın alma linki veya kütüphanede neden olması gerektiği..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none"></textarea>
+          </div>
+
+        </div>
+
+        <!-- Sabit Alt Butonlar -->
+        <div class="p-4 bg-slate-50 dark:bg-slate-800/90 border-t border-slate-100 dark:border-slate-700 flex justify-end space-x-2 shrink-0">
+          <button type="button" data-close-modal="newRequestModal" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200">
+            İptal
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold transition-colors">
+            Talebi Gönder
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ================= TALEP YÖNETİCİ DEĞERLENDİRME MODALI (ADMIN) ================= -->
+  <div id="requestActionModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-3 sm:p-4">
+    <div class="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 modal-container">
+      
+      <div class="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700 shrink-0">
+        <div>
+          <h3 id="requestActionModalTitle" class="font-bold text-base text-slate-900 dark:text-white">Talebi Değerlendir</h3>
+          <p id="actionRequestTitle" class="text-xs text-sky-600 dark:text-sky-400 font-bold mt-0.5 truncate"></p>
+        </div>
+        <button type="button" data-close-modal="requestActionModal" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-white flex items-center justify-center font-bold text-sm">
+          ✕
+        </button>
+      </div>
+
+      <form id="requestActionForm" class="flex flex-col flex-1 overflow-hidden">
+        <input type="hidden" id="actionRequestId" />
+        <input type="hidden" id="actionTargetStatus" />
+
+        <div class="modal-body-scrollable p-4 sm:p-6 space-y-4 text-xs">
+          
+          <div class="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/60 dark:border-slate-700/60 space-y-1">
+            <span class="text-slate-400 font-medium block">Talep Eden:</span>
+            <span id="actionRequesterInfo" class="font-bold text-slate-800 dark:text-slate-200"></span>
+            <p id="actionRequestDescription" class="text-slate-600 dark:text-slate-400 text-[11px] pt-1"></p>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 dark:text-slate-200 mb-1.5">Yönetici Notu / Yanıtı</label>
+            <textarea id="actionAdminNote" rows="3" placeholder="Örn: Sipariş verildi, 2 güne gelir. Ya da şu sebepten dolayı onaylanmadı..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none"></textarea>
+          </div>
+
+        </div>
+
+        <div class="p-4 bg-slate-50 dark:bg-slate-800/90 border-t border-slate-100 dark:border-slate-700 flex justify-end space-x-2 shrink-0">
+          <button type="button" data-close-modal="requestActionModal" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200">
+            Vazgeç
+          </button>
+          <button type="submit" id="btnSubmitRequestAction" class="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold transition-colors">
+            Kaydet
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ================= BİLDİRİM (TOAST) KAPSAYICISI ================= -->
+  <div id="toastContainer" class="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-50 flex flex-col space-y-2 pointer-events-none max-w-sm w-full"></div>
+
+  <!-- SİSTEM SCRIPTLERİ -->
+  <!-- Firebase SDK v13.0.0 Modül Başlatıcısı -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js';
+    const firebaseConfig = {
+      apiKey: 'AIzaSyAplESbQCk2YTCbQzi7UyOvPIYNQJvY9L8',
+      authDomain: 'altf4-envanter.firebaseapp.com',
+      projectId: 'altf4-envanter',
+      storageBucket: 'altf4-envanter.firebasestorage.app',
+      messagingSenderId: '928059638634',
+      appId: '1:928059638634:web:8da6fb168fc5ad352a9b13'
+    };
+    const app = initializeApp(firebaseConfig);
+    window.firebaseApp13 = app;
+  </script>
+  <script src="js/config.js"></script>
+  <script src="js/fuzzySearch.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/scanner.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- Service Worker Kaydı (PWA & Offline Desteği) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch((err) => {
+          console.log('ServiceWorker kaydı atlandı:', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

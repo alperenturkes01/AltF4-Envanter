@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Yardımcı Yetki Fonksiyonları
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email.lower() == 'altf4yapin@gmail.com';
+    }
+    
+    function isWhitelisted() {
+      return isSignedIn() && (
+        isAdmin() || 
+        request.auth.token.email.lower() in get(/databases/$(database)/documents/settings/whitelist).data.emails
+      );
+    }
+
+    // 1. Envanter Öğeleri (Items) Koleksiyonu
+    match /items/{itemId} {
+      // Beyaz listedeki tüm aile üyeleri okuyabilir
+      allow read: if isWhitelisted();
+      
+      // Sadece Yönetici yeni eşya ekleyebilir veya silebilir
+      allow create, delete: if isAdmin();
+      
+      // Güncelleme:
+      // - Yönetici her alanı güncelleyebilir
+      // - Aile üyeleri sadece 'durum', 'durumNotu', 'sonGuncelleyen', 'statusHistory' alanlarını güncelleyebilir ve 'durumNotu' boş olamaz!
+      allow update: if isAdmin() || (
+        isWhitelisted() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['durum', 'durumNotu', 'sonGuncelleyen', 'statusHistory', 'updatedAt']) &&
+        request.resource.data.durumNotu is string &&
+        request.resource.data.durumNotu.size() > 0
+      );
+    }
+
+    // 2. Sistem Ayarları ve Whitelist (Settings) Koleksiyonu
+    match /settings/whitelist {
+      // Aile üyeleri kimlerin listede olduğunu okuyabilir
+      allow read: if isWhitelisted();
+      // Yalnızca Yönetici whitelist'i güncelleyebilir
+      allow write: if isAdmin();
+    }
+    
+    // 3. İstek & Talep Kutusu (Requests) Koleksiyonu
+    match /requests/{requestId} {
+      // Beyaz listedeki tüm aile üyeleri ve Admin okuyabilir
+      allow read: if isWhitelisted();
+      
+      // Beyaz listedeki aile üyeleri ve Admin yeni talep oluşturabilir
+      allow create: if isWhitelisted() &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.description is string &&
+        request.resource.data.description.size() > 0;
+        
+      // Sadece Yönetici talep durumunu güncelleyebilir veya silebilir
+      allow update, delete: if isAdmin();
+    }
+    
+    match /settings/{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
+

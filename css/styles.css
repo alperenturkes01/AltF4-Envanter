@@ -1,0 +1,149 @@
+/* ==========================================
+   ALTF4 ENVANTER SİSTEMİ - ÖZEL STİLLER (STYLES.CSS)
+   ========================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Özel İnce Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.8);
+}
+
+/* Barkod / QR Lazer Animasyonu */
+@keyframes laserSweep {
+  0% {
+    top: 5%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 90%;
+    opacity: 1;
+  }
+  100% {
+    top: 5%;
+    opacity: 0.8;
+  }
+}
+
+.scanner-laser {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #38bdf8, #0ea5e9, #38bdf8, transparent);
+  box-shadow: 0 0 12px 3px rgba(14, 165, 233, 0.7);
+  animation: laserSweep 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Notion / Obsidian Tarzı Ağaç Dizin Çizgileri */
+.tree-branch {
+  position: relative;
+}
+
+.tree-branch::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: rgba(203, 213, 225, 0.6);
+}
+
+.dark .tree-branch::before {
+  background-color: rgba(51, 65, 85, 0.8);
+}
+
+/* Mobil Alt Menü Safe Area */
+.mobile-nav-bar {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+/* Yumuşak Cam (Glassmorphism) */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Kart Hover Animasyonu */
+.card-hover-effect {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-2px);
+}
+
+/* HTML5-QRCode Video Stili */
+#scannerPreview video {
+  width: 100% !important;
+  height: auto !important;
+  border-radius: 1rem !important;
+  object-fit: cover !important;
+}
+
+#scannerPreview {
+  border: none !important;
+  border-radius: 1rem !important;
+  overflow: hidden !important;
+}
+
+/* UI Düzeltmesi: Barkod Tarayıcı Z-Index (Her türlü modal ve formun kesinlikle önünde açılır) */
+#scannerModal {
+  z-index: 9999 !important;
+}
+
+/* UI Düzeltmesi: Modal Formlarının Ekrandan Taşmasını Engelleyen İç Kaydırma */
+.modal-container {
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.modal-body-scrollable {
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto !important;
+}
+
